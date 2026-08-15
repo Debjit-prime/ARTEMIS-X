@@ -31,4 +31,9 @@ My primary focus was on **AI Orchestration and Prompt Engineering**:
 Because this project uses standard web technologies without a build step, it is entirely self-contained:
 1. Clone or download this repository.
 2. Ensure you have an active internet connection (required to fetch the Three.js CDN libraries).
-3. Open the `index.html` file directly in any modern web browser (Chrome, Edge, Safari, Firefox). 
+3. Open the `index.html` file directly in any modern web browser (Chrome, Edge, Safari, Firefox).
+
+### 📊 Project Presentation & System Architecture
+For a deep dive into the engineering constraints, closed-loop life support (ECLSS), and structural architecture, view the full project presentation here:
+
+👉 [View the Artemis-X Presentation PDF](Project%20Artemis-X%20Presentation.pdf)
