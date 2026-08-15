@@ -36,4 +36,4 @@ Because this project uses standard web technologies without a build step, it is 
 ### 📊 Project Presentation & System Architecture
 For a deep dive into the engineering constraints, closed-loop life support (ECLSS), and structural architecture, view the full project presentation here:
 
-👉 [View the Artemis-X Presentation PDF](Project%20Artemis-X%20Presentation.pdf)
+👉 [View the Artemis-X Presentation PDF](Artemis-X.pdf)
