@@ -495,4 +495,626 @@
                 let flatteningFactor = Math.pow(dist / 70, 2); 
                 z *= flatteningFactor; 
             } else if (dist > 200) {
-            
+                z += (dist - 200) * 0.15;
+            }
+            posAttr.setZ(i, z);
+
+            const base = 0.27 - shade * 0.12 + (Math.random() * 0.04 - 0.02);
+            colorArray[i * 3] = base;
+            colorArray[i * 3 + 1] = base * 0.98;
+            colorArray[i * 3 + 2] = base * 0.95;
+        }
+        terrainGeo.setAttribute('color', new THREE.BufferAttribute(colorArray, 3));
+        terrainGeo.computeVertexNormals();
+
+        const terrain = new THREE.Mesh(terrainGeo, regolithMaterial);
+        terrain.rotation.x = -Math.PI / 2;
+        terrain.receiveShadow = true;
+        scene.add(terrain);
+
+        // 5. Constructing the Base
+        const baseGroup = new THREE.Group();
+        scene.add(baseGroup);
+
+        function createDome(radius, x, z, isGreenhouse = false) {
+            const group = new THREE.Group();
+
+            const baseGeo = new THREE.IcosahedronGeometry(radius, 3);
+            const positions = baseGeo.attributes.position;
+            for(let i=0; i<positions.count; i++) {
+                if(positions.getY(i) < -0.1) positions.setY(i, 0);
+            }
+            baseGeo.computeVertexNormals();
+
+            const dome = new THREE.Mesh(baseGeo, isGreenhouse ? greenhouseMaterial : structuralMaterial);
+            dome.castShadow = true;
+            dome.receiveShadow = true;
+            group.add(dome);
+
+            if (isGreenhouse) {
+                const wireframe = new THREE.LineSegments(
+                    new THREE.WireframeGeometry(baseGeo),
+                    new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.3, transparent: true })
+                );
+                group.add(wireframe);
+
+                const growLight = new THREE.PointLight(0x00ffaa, 2.5, radius * 4);
+                growLight.position.set(0, radius * 0.4, 0);
+                group.add(growLight);
+            }
+
+            // Tiranga Foundation Rings
+            const ringGeo = new THREE.CylinderGeometry(radius * 1.1, radius * 1.2, 0.33, 16);
+
+            const ringTop = new THREE.Mesh(ringGeo, saffronMat);
+            ringTop.position.y = 0.83; ringTop.castShadow = true; ringTop.receiveShadow = true;
+            group.add(ringTop);
+
+            const ringMid = new THREE.Mesh(ringGeo, structuralMaterial);
+            ringMid.position.y = 0.5; ringMid.castShadow = true; ringMid.receiveShadow = true;
+            group.add(ringMid);
+
+            const ringBot = new THREE.Mesh(ringGeo, greenMat);
+            ringBot.position.y = 0.17; ringBot.castShadow = true; ringBot.receiveShadow = true;
+            group.add(ringBot);
+
+            group.position.set(x, 0, z);
+            return group;
+        }
+
+        function createTube(x1, z1, x2, z2) {
+            const group = new THREE.Group();
+            const dx = x2 - x1;
+            const dz = z2 - z1;
+            const length = Math.sqrt(dx*dx + dz*dz);
+            const angle = Math.atan2(dx, dz);
+
+            const tubeGeo = new THREE.CylinderGeometry(2, 2, length - 4, 16);
+            const tube = new THREE.Mesh(tubeGeo, structuralMaterial);
+            tube.rotation.x = Math.PI / 2;
+            tube.position.y = 2;
+            tube.castShadow = true;
+            tube.receiveShadow = true;
+            group.add(tube);
+
+            // Tiranga glowing running strips on corridors
+            const stripGeo = new THREE.BoxGeometry(0.1, length - 4, 0.1);
+
+            const stripS = new THREE.Mesh(stripGeo, glowingSaffron);
+            stripS.rotation.x = Math.PI / 2; stripS.position.set(-0.25, 4, 0);
+            group.add(stripS);
+
+            const stripW = new THREE.Mesh(stripGeo, glowingWhite);
+            stripW.rotation.x = Math.PI / 2; stripW.position.set(0, 4, 0);
+            group.add(stripW);
+
+            const stripG = new THREE.Mesh(stripGeo, glowingGreen);
+            stripG.rotation.x = Math.PI / 2; stripG.position.set(0.25, 4, 0);
+            group.add(stripG);
+
+            group.rotation.y = angle;
+            group.position.set((x1+x2)/2, 0, (z1+z2)/2);
+            return group;
+        }
+
+        // Base Layout
+        baseGroup.add(createDome(12, 0, 0)); 
+
+        const locations = [
+            {x: 25, z: 25, r: 8, green: false},
+            {x: -25, z: 25, r: 8, green: true}, 
+            {x: 25, z: -25, r: 8, green: false}, 
+            {x: -25, z: -25, r: 7, green: false}  
+        ];
+
+        locations.forEach(loc => {
+            baseGroup.add(createDome(loc.r, loc.x, loc.z, loc.green));
+            baseGroup.add(createTube(0, 0, loc.x, loc.z));
+        });
+
+        // 6. SpaceX-Style Starship & Tiranga Landing Pad
+        const padRadius = 20;
+        const padGeo = new THREE.CylinderGeometry(padRadius, padRadius + 2, 1, 32);
+        const pad = new THREE.Mesh(padGeo, structuralMaterial);
+        pad.position.set(0, 0.5, 65);
+        pad.receiveShadow = true;
+        baseGroup.add(pad);
+
+        // Scorch/blast-scoured ring on the pad surface
+        const scorchGeo = new THREE.RingGeometry(2, 14, 48);
+        const scorchMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 1.0, transparent: true, opacity: 0.55 });
+        const scorch = new THREE.Mesh(scorchGeo, scorchMat);
+        scorch.rotation.x = -Math.PI / 2;
+        scorch.position.set(0, 1.02, 65);
+        baseGroup.add(scorch);
+
+        // Concentric Tiranga glowing guidance rings
+        const ringLightGeo = new THREE.TorusGeometry(15, 0.15, 16, 64);
+
+        const ringS = new THREE.Mesh(ringLightGeo, glowingSaffron);
+        ringS.rotation.x = Math.PI / 2; ringS.position.set(0, 1.1, 65); ringS.scale.set(1.05, 1.05, 1);
+        baseGroup.add(ringS);
+
+        const ringW = new THREE.Mesh(ringLightGeo, glowingWhite);
+        ringW.rotation.x = Math.PI / 2; ringW.position.set(0, 1.1, 65);
+        baseGroup.add(ringW);
+
+        const ringG = new THREE.Mesh(ringLightGeo, glowingGreen);
+        ringG.rotation.x = Math.PI / 2; ringG.position.set(0, 1.1, 65); ringG.scale.set(0.95, 0.95, 1);
+        baseGroup.add(ringG);
+
+        const padLight = new THREE.PointLight(0xffffff, 1.0, 30);
+        padLight.position.set(0, 2, 65);
+        baseGroup.add(padLight);
+
+        const enginePlumes = []; // collected for animation
+        const engineGlows = [];
+
+        function createStarship(x, z) {
+            const shipGroup = new THREE.Group();
+
+            const steelMat = new THREE.MeshPhysicalMaterial({
+                color: 0xf2f2f2, metalness: 0.7, roughness: 0.25, clearcoat: 1.0, clearcoatRoughness: 0.15
+            });
+            const shipSaffron = new THREE.MeshPhysicalMaterial({ color: 0xFF9933, roughness: 0.35, metalness: 0.2, clearcoat: 0.9, emissive: 0xFF9933, emissiveIntensity: 0.15 });
+            const shipWhite = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.3, metalness: 0.2, clearcoat: 0.9 });
+            const shipGreen = new THREE.MeshPhysicalMaterial({ color: 0x138808, roughness: 0.35, metalness: 0.2, clearcoat: 0.9, emissive: 0x138808, emissiveIntensity: 0.15 });
+            const heatShieldMat = new THREE.MeshStandardMaterial({
+                color: 0x111111, roughness: 0.9, metalness: 0.1
+            });
+            const darkSteel = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.5, metalness: 0.8 });
+
+            // Main Hull
+            const hull = new THREE.Mesh(new THREE.CylinderGeometry(3.5, 3.5, 30, 32), steelMat);
+            hull.position.y = 16;
+            hull.castShadow = true; hull.receiveShadow = true;
+            shipGroup.add(hull);
+
+            // Circumferential weld-line rings for hull realism
+            for (let i = 0; i < 6; i++) {
+                const weldGeo = new THREE.TorusGeometry(3.51, 0.03, 6, 48);
+                const weld = new THREE.Mesh(weldGeo, darkSteel);
+                weld.position.y = 3 + i * 5;
+                shipGroup.add(weld);
+            }
+
+            // Header tank dome (visible bulge near nose)
+            const headerTank = new THREE.Mesh(new THREE.SphereGeometry(2.8, 24, 24), steelMat);
+            headerTank.position.y = 32;
+            headerTank.scale.set(1, 0.6, 1);
+            shipGroup.add(headerTank);
+
+            // Tiranga Paint Bands on Hull — wide, high-contrast, three full stripes
+            const stripeHeight = 3.2;
+            const bandGeoWide = new THREE.CylinderGeometry(3.62, 3.62, stripeHeight, 32);
+
+            const bandS = new THREE.Mesh(bandGeoWide, shipSaffron);
+            bandS.position.y = 28.5;
+            shipGroup.add(bandS);
+
+            const bandW = new THREE.Mesh(bandGeoWide, shipWhite);
+            bandW.position.y = 25.3;
+            shipGroup.add(bandW);
+
+            const bandG = new THREE.Mesh(bandGeoWide, shipGreen);
+            bandG.position.y = 22.1;
+            shipGroup.add(bandG);
+
+            // Thin dark pinstripes at each stripe edge for definition against the white hull
+            const pinstripeMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.6, metalness: 0.3 });
+            [30.1, 26.9, 23.7, 20.5].forEach(py => {
+                const pin = new THREE.Mesh(new THREE.CylinderGeometry(3.64, 3.64, 0.12, 32), pinstripeMat);
+                pin.position.y = py;
+                shipGroup.add(pin);
+            });
+
+            // Bold nose-to-tail ISRO roundel/wordmark band (low on the hull, away from heatshield side)
+            const wordmarkCanvas = document.createElement('canvas');
+            wordmarkCanvas.width = 1024; wordmarkCanvas.height = 128;
+            const wctx = wordmarkCanvas.getContext('2d');
+            wctx.fillStyle = '#f2f2f2'; wctx.fillRect(0, 0, 1024, 128);
+            wctx.fillStyle = '#FF9933';
+            wctx.font = 'bold 90px Arial';
+            wctx.textBaseline = 'middle';
+            wctx.fillText('ISRO', 40, 64);
+            wctx.fillStyle = '#138808';
+            wctx.fillText('ARTEMIS-X', 320, 64);
+            const wordmarkTex = new THREE.CanvasTexture(wordmarkCanvas);
+            wordmarkTex.wrapS = THREE.RepeatWrapping;
+            wordmarkTex.repeat.set(1, 1);
+            const wordmarkMat = new THREE.MeshStandardMaterial({ map: wordmarkTex, roughness: 0.4, metalness: 0.1, side: THREE.DoubleSide });
+            const wordmarkBand = new THREE.Mesh(new THREE.CylinderGeometry(3.64, 3.64, 2.2, 32, 1, true, Math.PI / 2, Math.PI), wordmarkMat);
+            wordmarkBand.position.y = 12;
+            shipGroup.add(wordmarkBand);
+
+            // Windward Heatshield with tiled pattern
+            const tileCanvas = document.createElement('canvas');
+            tileCanvas.width = 256; tileCanvas.height = 512;
+            const tctx = tileCanvas.getContext('2d');
+            tctx.fillStyle = '#2c2c2e'; tctx.fillRect(0, 0, 256, 512);
+            tctx.strokeStyle = '#000000'; tctx.lineWidth = 2;
+            for (let ty = 0; ty < 512; ty += 16) {
+                for (let tx = 0; tx < 256; tx += 16) {
+                    const offset = (Math.floor(ty / 16) % 2) * 8;
+                    tctx.strokeRect(tx + offset, ty, 16, 16);
+                    // subtle per-tile shading so the pattern reads even in flat light
+                    tctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.08)';
+                    tctx.fillRect(tx + offset, ty, 16, 16);
+                }
+            }
+            const tileTexture = new THREE.CanvasTexture(tileCanvas);
+            tileTexture.wrapS = THREE.RepeatWrapping;
+            tileTexture.wrapT = THREE.RepeatWrapping;
+            tileTexture.repeat.set(3, 4);
+            const tiledHeatShieldMat = new THREE.MeshStandardMaterial({ map: tileTexture, color: 0x3a3a3c, roughness: 0.85, metalness: 0.15 });
+
+            const shield = new THREE.Mesh(new THREE.CylinderGeometry(3.58, 3.58, 30, 32, 1, false, 0, Math.PI), tiledHeatShieldMat);
+            shield.position.y = 16;
+            shield.rotation.y = Math.PI / 2; 
+            shipGroup.add(shield);
+
+            // Nosecone
+            const nose = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 3.5, 12, 32), steelMat);
+            nose.position.y = 37;
+            nose.castShadow = true;
+            shipGroup.add(nose);
+
+            const noseShield = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 3.58, 12, 32, 1, false, 0, Math.PI), tiledHeatShieldMat);
+            noseShield.position.y = 37;
+            noseShield.rotation.y = Math.PI / 2;
+            shipGroup.add(noseShield);
+
+            // Aft Fins (flaps)
+            const finGeo = new THREE.BoxGeometry(0.5, 8, 5);
+            const fin1 = new THREE.Mesh(finGeo, steelMat);
+            fin1.position.set(3.5, 6, 0); fin1.rotation.z = Math.PI / 16; fin1.castShadow = true;
+            shipGroup.add(fin1);
+
+            const fin2 = new THREE.Mesh(finGeo, steelMat);
+            fin2.position.set(-3.5, 6, 0); fin2.rotation.z = -Math.PI / 16; fin2.castShadow = true;
+            shipGroup.add(fin2);
+
+            // Forward canard flaps
+            const canardGeo = new THREE.BoxGeometry(0.4, 4, 3);
+            const canard1 = new THREE.Mesh(canardGeo, steelMat);
+            canard1.position.set(3.2, 30, 0); canard1.rotation.z = Math.PI / 12; canard1.castShadow = true;
+            shipGroup.add(canard1);
+            const canard2 = new THREE.Mesh(canardGeo, steelMat);
+            canard2.position.set(-3.2, 30, 0); canard2.rotation.z = -Math.PI / 12; canard2.castShadow = true;
+            shipGroup.add(canard2);
+
+            // Grid fins (deployed, near the top of the hull)
+            function createGridFin(angle) {
+                const finGroup = new THREE.Group();
+                const frame = new THREE.Mesh(new THREE.BoxGeometry(2.2, 2.2, 0.5), darkSteel);
+                finGroup.add(frame);
+                for (let i = -1; i <= 1; i++) {
+                    const barV = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.2, 0.5), darkSteel);
+                    barV.position.x = i * 0.7;
+                    finGroup.add(barV);
+                    const barH = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.08, 0.5), darkSteel);
+                    barH.position.y = i * 0.7;
+                    finGroup.add(barH);
+                }
+                const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 1.6, 8), steelMat);
+                arm.rotation.z = Math.PI / 2;
+                arm.position.x = -1.6;
+                finGroup.add(arm);
+
+                const r = 3.5 + 1.4;
+                finGroup.position.set(Math.cos(angle) * r, 29, Math.sin(angle) * r);
+                finGroup.rotation.y = -angle;
+                finGroup.castShadow = true;
+                return finGroup;
+            }
+            shipGroup.add(createGridFin(0));
+            shipGroup.add(createGridFin(Math.PI));
+
+            // Deployed landing legs (4x, splayed outward from base)
+            function createLandingLeg(angle) {
+                const legGroup = new THREE.Group();
+                const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, 6, 8), darkSteel);
+                strut.position.y = 3;
+                strut.rotation.z = Math.PI / 6;
+                strut.castShadow = true;
+                legGroup.add(strut);
+
+                const footPad = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.3, 0.4, 12), darkSteel);
+                footPad.position.set(2.8, 0.2, 0);
+                footPad.castShadow = true;
+                footPad.receiveShadow = true;
+                legGroup.add(footPad);
+
+                const brace = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 4, 8), darkSteel);
+                brace.position.set(1.5, 1.5, 0);
+                brace.rotation.z = Math.PI / 3.2;
+                legGroup.add(brace);
+
+                legGroup.position.set(Math.cos(angle) * 3.3, 0, Math.sin(angle) * 3.3);
+                legGroup.rotation.y = -angle;
+                return legGroup;
+            }
+            [0, Math.PI/2, Math.PI, -Math.PI/2].forEach(a => shipGroup.add(createLandingLeg(a)));
+
+            // Raptor-class 3-engine cluster at the aft skirt
+            const engineOffsets = [[0,0], [1.6, 0], [-0.8, 1.4]];
+            engineOffsets.forEach(([ex, ez]) => {
+                const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.8, 1.6, 16), darkSteel);
+                nozzle.position.set(ex, 0.8, ez);
+                nozzle.castShadow = true;
+                shipGroup.add(nozzle);
+
+                const engineGlow = new THREE.PointLight(0xff5500, 2.2, 14);
+                engineGlow.position.set(ex, 0.2, ez);
+                shipGroup.add(engineGlow);
+                engineGlows.push(engineGlow);
+
+                const enginePlume = new THREE.Mesh(
+                    new THREE.ConeGeometry(0.9, 3, 16, 1, true),
+                    new THREE.MeshBasicMaterial({ color: 0xff6a00, transparent: true, opacity: 0.75 })
+                );
+                enginePlume.position.set(ex, -1.2, ez);
+                enginePlume.rotation.x = Math.PI;
+                shipGroup.add(enginePlume);
+                enginePlumes.push(enginePlume);
+            });
+
+            shipGroup.position.set(x, 1, z);
+            return shipGroup;
+        }
+
+        baseGroup.add(createStarship(0, 65));
+
+        // 6b. Lunar Rover (simple ISRU regolith-hauler)
+        function createRover(x, z) {
+            const rover = new THREE.Group();
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.6, roughness: 0.4 });
+            const wheelMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.3, roughness: 0.8 });
+
+            const chassis = new THREE.Mesh(new THREE.BoxGeometry(4, 1, 2.5), bodyMat);
+            chassis.position.y = 1.4;
+            chassis.castShadow = true; chassis.receiveShadow = true;
+            rover.add(chassis);
+
+            const accentTop = new THREE.Mesh(new THREE.BoxGeometry(4.02, 0.15, 2.52), saffronMat);
+            accentTop.position.y = 1.95;
+            rover.add(accentTop);
+
+            const wheelPositions = [[-1.6, 1.3], [-1.6, -1.3], [1.6, 1.3], [1.6, -1.3]];
+            wheelPositions.forEach(([wx, wz]) => {
+                const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.5, 16), wheelMat);
+                wheel.rotation.z = Math.PI / 2;
+                wheel.position.set(wx, 0.7, wz);
+                wheel.castShadow = true;
+                rover.add(wheel);
+            });
+
+            const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 2, 8), bodyMat);
+            mast.position.set(-1, 2.9, 0);
+            rover.add(mast);
+            const cam = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.3, 0.3), wheelMat);
+            cam.position.set(-1, 3.9, 0);
+            rover.add(cam);
+
+            const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 8), glowingGreen);
+            beacon.position.set(1.5, 2.1, 0);
+            rover.add(beacon);
+
+            rover.position.set(x, 0, z);
+            rover.rotation.y = Math.random() * Math.PI * 2;
+            return rover;
+        }
+        baseGroup.add(createRover(18, -8));
+        baseGroup.add(createRover(-15, 5));
+
+        // 7. Advanced Communications Array
+        const commsGroup = new THREE.Group();
+        const commTower = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 2, 30, 8), structuralMaterial);
+        commTower.position.y = 15;
+        commTower.castShadow = true;
+        commsGroup.add(commTower);
+
+        const dishSupport = new THREE.Group();
+        dishSupport.position.y = 30;
+
+        const dishGeo = new THREE.SphereGeometry(5, 32, 16, 0, Math.PI);
+        const dish = new THREE.Mesh(dishGeo, structuralMaterial);
+        dish.material.side = THREE.DoubleSide; 
+        dish.rotation.x = Math.PI / 3; 
+        dishSupport.add(dish);
+
+        const receiver = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 5), structuralMaterial);
+        receiver.position.set(0, 2.5, 2.5);
+        receiver.rotation.x = -Math.PI / 6;
+        dishSupport.add(receiver);
+
+        const commBeacon = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 8), glowingGreen); // Green Comm Beacon
+        commBeacon.position.set(0, 5, 4);
+        dishSupport.add(commBeacon);
+
+        commsGroup.add(dishSupport);
+        commsGroup.position.set(45, 0, -10);
+        baseGroup.add(commsGroup);
+
+        // 8. Solar Towers
+        function createSolarTower(x, z) {
+            const tower = new THREE.Group();
+
+            const mastGeo = new THREE.CylinderGeometry(0.5, 0.8, 25);
+            const mast = new THREE.Mesh(mastGeo, structuralMaterial);
+            mast.position.y = 12.5; mast.castShadow = true;
+            tower.add(mast);
+
+            const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), glowingSaffron); // Saffron Solar Beacon
+            beacon.position.y = 25.5;
+            tower.add(beacon);
+
+            const panelGroup = new THREE.Group();
+            for(let i=0; i<4; i++) {
+                const panelGeo = new THREE.BoxGeometry(5, 5, 0.2);
+                const panel = new THREE.Mesh(panelGeo, solarPanelMaterial);
+                panel.position.y = i * 5.2 - 7.8; panel.castShadow = true;
+                panelGroup.add(panel);
+            }
+            panelGroup.position.y = 15;
+            panelGroup.rotation.y = Math.atan2(sunLight.position.x, sunLight.position.z) - Math.PI/2;
+            tower.add(panelGroup);
+
+            tower.position.set(x, 0, z);
+            return tower;
+        }
+
+        baseGroup.add(createSolarTower(-50, 10));
+        baseGroup.add(createSolarTower(-55, 30));
+        baseGroup.add(createSolarTower(-55, -10));
+
+        // 9. Procedural Indian Flag (Rigid Apollo-Style for Vacuum)
+        function createIndianFlag(x, z) {
+            const flagGroup = new THREE.Group();
+
+            const poleMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.9, roughness: 0.1 });
+            const poleGeo = new THREE.CylinderGeometry(0.15, 0.15, 12, 16);
+            const pole = new THREE.Mesh(poleGeo, poleMat);
+            pole.position.y = 6; pole.castShadow = true;
+            flagGroup.add(pole);
+
+            const rodGeo = new THREE.CylinderGeometry(0.08, 0.08, 5, 8);
+            const rod = new THREE.Mesh(rodGeo, poleMat);
+            rod.rotation.z = Math.PI / 2; rod.position.set(2.5, 11.9, 0); rod.castShadow = true;
+            flagGroup.add(rod);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = 600; canvas.height = 400;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#FF9933'; ctx.fillRect(0, 0, 600, 133.33);
+            ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 133.33, 600, 133.33);
+            ctx.fillStyle = '#138808'; ctx.fillRect(0, 266.66, 600, 133.34);
+
+            ctx.strokeStyle = '#000080'; ctx.lineWidth = 4;
+            const cx = 300, cy = 200, r = 45;
+            ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+
+            ctx.lineWidth = 2.5;
+            for(let i=0; i<24; i++) {
+                ctx.beginPath(); ctx.moveTo(cx, cy);
+                ctx.lineTo(cx + r * Math.cos(i * Math.PI / 12), cy + r * Math.sin(i * Math.PI / 12));
+                ctx.stroke();
+            }
+
+            const flagTexture = new THREE.CanvasTexture(canvas);
+            const flagGeo = new THREE.PlaneGeometry(5, 3.33, 20, 20);
+            const pos = flagGeo.attributes.position;
+            for(let i=0; i<pos.count; i++) {
+                let px = pos.getX(i); let py = pos.getY(i);
+                let pz = Math.sin(px * 1.8) * 0.15 + Math.cos(py * 2.5) * 0.1;
+                pos.setZ(i, pz);
+            }
+            flagGeo.computeVertexNormals();
+
+            const flagMat = new THREE.MeshStandardMaterial({ 
+                map: flagTexture, side: THREE.DoubleSide, roughness: 0.8, metalness: 0.1
+            });
+
+            const flagMesh = new THREE.Mesh(flagGeo, flagMat);
+            flagMesh.position.set(2.5, 10.23, 0); flagMesh.castShadow = true;
+            flagGroup.add(flagMesh);
+
+            flagGroup.rotation.y = -Math.PI / 3.5;
+            flagGroup.position.set(x, 0, z);
+            return flagGroup;
+        }
+
+        baseGroup.add(createIndianFlag(12, 18));
+
+
+        // 10. Multi-Layer Dynamic Twinkling Starfield
+        const starsGroup = new THREE.Group();
+
+        const createStarLayer = (count, size) => {
+            const geo = new THREE.BufferGeometry();
+            const pos = new Float32Array(count * 3);
+            for(let i = 0; i < count * 3; i+=3) {
+                let px = (Math.random() - 0.5) * 2000;
+                let py = Math.random() * 1000 + 100; 
+                let pz = (Math.random() - 0.5) * 2000;
+                pos[i] = px; pos[i+1] = py; pos[i+2] = pz;
+            }
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+
+            const mat = new THREE.PointsMaterial({ 
+                color: 0xffffff, size: size, transparent: true, opacity: 1.0, sizeAttenuation: true
+            });
+
+            const mesh = new THREE.Points(geo, mat);
+            starsGroup.add(mesh);
+            return mat;
+        };
+
+        const starMat1 = createStarLayer(2500, 2.0);
+        const starMat2 = createStarLayer(2500, 1.5);
+        const starMat3 = createStarLayer(1500, 3.0); 
+
+        scene.add(starsGroup);
+
+        // Earth in the lunar sky (South Pole vantage: low, dim crescent Earth)
+        function createEarth() {
+            const earthGroup = new THREE.Group();
+            const earthCanvas = document.createElement('canvas');
+            earthCanvas.width = 256; earthCanvas.height = 256;
+            const ectx = earthCanvas.getContext('2d');
+            const grad = ectx.createRadialGradient(128, 128, 10, 128, 128, 128);
+            grad.addColorStop(0, '#3a6ea5');
+            grad.addColorStop(0.5, '#2a4d78');
+            grad.addColorStop(1, '#0d1a2a');
+            ectx.fillStyle = grad;
+            ectx.beginPath(); ectx.arc(128, 128, 128, 0, Math.PI * 2); ectx.fill();
+            ectx.fillStyle = 'rgba(255,255,255,0.5)';
+            for (let i = 0; i < 40; i++) {
+                ectx.beginPath();
+                ectx.ellipse(Math.random()*256, Math.random()*256, Math.random()*30, Math.random()*12, Math.random()*Math.PI, 0, Math.PI*2);
+                ectx.fill();
+            }
+            const earthTex = new THREE.CanvasTexture(earthCanvas);
+            const earthMat = new THREE.MeshBasicMaterial({ map: earthTex });
+            const earthMesh = new THREE.Mesh(new THREE.SphereGeometry(35, 32, 32), earthMat);
+            earthGroup.add(earthMesh);
+            earthGroup.position.set(-350, 90, -600);
+            return earthGroup;
+        }
+        scene.add(createEarth());
+
+        // 11. Resize Handling
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // 12. Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+
+            dishSupport.rotation.y += 0.002;
+
+            const time = Date.now() * 0.001;
+            starMat1.opacity = 0.5 + Math.sin(time * 2.5) * 0.5;
+            starMat2.opacity = 0.6 + Math.cos(time * 1.8) * 0.4;
+
+            // Engine plume flicker for the grounded Starship (idle/settled state)
+            enginePlumes.forEach((p, i) => {
+                const flick = 0.55 + Math.sin(time * 12 + i * 2) * 0.15 + Math.random() * 0.05;
+                p.material.opacity = Math.max(0, flick * 0.3); // dim, engines are off post-landing
+            });
+            engineGlows.forEach((g, i) => {
+                g.intensity = 0.15 + Math.sin(time * 6 + i) * 0.05; // residual heat glow
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
