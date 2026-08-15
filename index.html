@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lunar Base Architecture | Project Artemis-X</title>
+    <!-- Import aerospace-style font -->
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Tiranga Color Palette */
+            --saffron: #FF9933;
+            --white: #FFFFFF;
+            --green: #138808;
+
+            --secondary: #aaaaaa;
+            --bg-dark: rgba(5, 5, 7, 0.75);
+            --text-main: #f0f0f0;
+        }
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Rajdhani', sans-serif;
+            color: var(--text-main);
+            user-select: none;
+        }
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        /* Tactical HUD Overlay */
+        #hud-crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            pointer-events: none;
+            z-index: 5;
+            opacity: 0.3;
+        }
+        #hud-crosshair::before, #hud-crosshair::after {
+            content: '';
+            position: absolute;
+            background: var(--white);
+        }
+        #hud-crosshair::before { top: 19px; left: -10px; width: 60px; height: 1px; }
+        #hud-crosshair::after { left: 19px; top: -10px; width: 1px; height: 60px; }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            padding: 30px;
+            box-sizing: border-box;
+            transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Aerospace UI Styling */
+        .panel {
+            pointer-events: auto;
+            background: var(--bg-dark);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-left: 4px solid var(--saffron); /* Saffron Accent */
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+        }
+        #nav-panel {
+            width: 280px;
+            margin-right: 30px;
+        }
+        #info-panel {
+            width: 420px;
+            max-height: calc(100vh - 60px);
+            overflow-y: auto;
+        }
+        h1 {
+            color: var(--saffron);
+            font-size: 1.4rem;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            margin-top: 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        h2 {
+            color: var(--white);
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        .nav-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: var(--text-main);
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .nav-btn:hover {
+            background: rgba(255, 153, 51, 0.15); /* Subtle Saffron Hover */
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+        .nav-btn.active {
+            background: var(--white);
+            color: #000;
+            border-color: var(--white);
+            border-left: 6px solid var(--saffron);
+            font-weight: 700;
+        }
+        .tech-desc {
+            font-size: 1.05rem;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            font-weight: 400;
+        }
+        .highlight {
+            color: var(--saffron);
+            font-weight: 700;
+            background: rgba(255,255,255,0.1);
+            padding: 0 4px;
+        }
+
+        /* Top Right Mission Status */
+        .mission-status {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            text-align: right;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .status-line {
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            color: var(--secondary);
+        }
+        .status-line span {
+            color: var(--green); /* Green for positive status */
+            font-weight: bold;
+        }
+
+        .controls-hint {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            padding: 12px 25px;
+            border: 1px solid rgba(255,255,255,0.1);
+            font-size: 0.9rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            pointer-events: none;
+            z-index: 10;
+            transition: opacity 0.3s ease;
+        }
+
+        #toggle-ui-btn {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            z-index: 100;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+            border: 1px solid var(--secondary);
+            color: var(--white);
+            padding: 10px 20px;
+            cursor: pointer;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.2s ease;
+        }
+        #toggle-ui-btn:hover {
+            background: var(--white);
+            color: #000;
+        }
+
+        .hidden, .hidden * {
+            opacity: 0;
+            pointer-events: none !important;
+        }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.5); }
+
+        @media (max-width: 768px) {
+            #ui-layer { flex-direction: column; padding: 15px; }
+            #nav-panel { width: 100%; margin-bottom: 15px; margin-right: 0; display: flex; flex-wrap: wrap; gap: 5px;}
+            .nav-btn { flex: 1; min-width: 120px; padding: 8px; font-size: 0.85rem; margin-bottom: 0;}
+            #info-panel { width: 100%; flex: 1; }
+            .mission-status { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+    <div id="hud-crosshair"></div>
+    <button id="toggle-ui-btn">HIDE DASHBOARD</button>
+
+    <div class="mission-status">
+        <div class="status-line">Sys_Time: <span id="clock">00:00:00</span></div>
+        <div class="status-line">Uplink: <span>NOMINAL</span></div>
+        <div class="status-line">Life Support: <span>ACTIVE</span></div>
+    </div>
+
+    <div id="ui-layer">
+        <div class="panel" id="nav-panel">
+            <h1>ISRO Lunar Base</h1>
+            <button class="nav-btn active" data-target="overview">Mission Overview</button>
+            <button class="nav-btn" data-target="transport">Heavy Transport</button>
+            <button class="nav-btn" data-target="energy">Energy Sys</button>
+            <button class="nav-btn" data-target="water">Water Rec</button>
+            <button class="nav-btn" data-target="oxygen">O2 Production</button>
+            <button class="nav-btn" data-target="food">Bioponics</button>
+            <button class="nav-btn" data-target="comm">Comm Array</button>
+        </div>
+        <div class="panel" id="info-panel"></div>
+    </div>
+
+    <div class="controls-hint">
+        Click & Drag: Rotate Cam | Scroll: Zoom | Idle: Auto-Orbit
+    </div>
+
+    <script>
+        // --- Live Clock Logic ---
+        function updateClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
+        }
+        updateClock();
+        setInterval(updateClock, 1000);
+        // ------------------------
+
+        const missionData = {
+            overview: {
+                title: "Shackleton Base: Architecture",
+                content: `
+                    <p>Live data feed from the Indian Lunar Outpost, situated at the <span class="highlight">South Pole's Shackleton Crater</span>.</p>
+                    <p><strong>Design Philosophy:</strong> Achieving true sustainability through in-situ resource utilization (ISRU) and hyper-efficient modular design. Adorned with the Saffron, White, and Green livery.</p>
+                    <p><strong>Radiation Shielding:</strong> Autonomous rovers pile lunar regolith over habitat modules, providing structural shielding against galactic cosmic rays and micrometeoroid impacts.</p>
+                `
+            },
+            transport: {
+                title: "Interplanetary Transport",
+                content: `
+                    <p><strong>Heavy-Lift Lander:</strong> Sitting on Pad-A is our primary logistics and crew vehicle. Standing 50m tall, constructed of cold-rolled stainless steel with Tiranga orbital bands.</p>
+                    <p><strong>Propulsion:</strong> Three-engine Raptor-class cluster burning deep-cryo Liquid Oxygen and Liquid Methane. Methane is synthesized on-site via the Sabatier reaction.</p>
+                    <p><strong>Landing System:</strong> Quad deployable landing legs and dual forward/aft grid fins for atmospheric-independent, propulsive lunar touchdown.</p>
+                `
+            },
+            energy: {
+                title: "Energy: Vertical Solar & Fission",
+                content: `
+                    <p><strong>Primary Source:</strong> <span class="highlight">Vertical Solar Arrays</span>. Due to the low angle of the sun at the lunar poles, standard flat panels are inefficient. We utilize towering, vertically-oriented bi-facial photovoltaic arrays.</p>
+                `
+            },
+            water: {
+                title: "Water: Extraction & ECLSS",
+                content: `
+                    <p><strong>Sourcing:</strong> Autonomous thermal-mining rovers extract water ice from permanently shadowed regions (PSRs). The ice is sublimated and captured as vapor.</p>
+                    <p><strong>Purification:</strong> The Environmental Control and Life Support System (ECLSS) recovers 98% of all moisture in the habitat.</p>
+                `
+            },
+            oxygen: {
+                title: "Oxygen: Regolith Electrolysis",
+                content: `
+                    <p><strong>ISRU Generation:</strong> Lunar regolith is roughly 40-45% oxygen by weight. We employ <span class="highlight">Molten Regolith Electrolysis (MRE)</span>.</p>
+                `
+            },
+            food: {
+                title: "Bioregenerative Systems",
+                content: `
+                    <p><strong>Plant Growth:</strong> Vertical <span class="highlight">Aeroponic Greenhouses</span> use 95% less water than soil farming. Narrow-band LED lighting provides targeted photosynthetically active radiation (PAR).</p>
+                `
+            },
+            comm: {
+                title: "Communication: Optical Array",
+                content: `
+                    <p><strong>Primary Uplink:</strong> <span class="highlight">Direct-to-Earth Optical (Laser) Communications</span> provide gigabit data rates for live data streams and high-def video.</p>
+                `
+            }
+        };
+
+        const infoPanel = document.getElementById('info-panel');
+        const navBtns = document.querySelectorAll('.nav-btn');
+
+        function updatePanel(key) {
+            const data = missionData[key];
+            infoPanel.innerHTML = `<h2>${data.title}</h2>${data.content}`;
+            navBtns.forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`[data-target="${key}"]`).classList.add('active');
+        }
+
+        navBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                updatePanel(e.target.getAttribute('data-target'));
+            });
+        });
+
+        updatePanel('overview');
+
+        const toggleBtn = document.getElementById('toggle-ui-btn');
+        const uiLayer = document.getElementById('ui-layer');
+        const missionStatus = document.querySelector('.mission-status');
+        const controlsHint = document.querySelector('.controls-hint');
+        const hud = document.getElementById('hud-crosshair');
+
+        toggleBtn.addEventListener('click', () => {
+            uiLayer.classList.toggle('hidden');
+            controlsHint.classList.toggle('hidden');
+            missionStatus.classList.toggle('hidden');
+            hud.classList.toggle('hidden');
+
+            if (uiLayer.classList.contains('hidden')) {
+                toggleBtn.innerHTML = 'SHOW DASHBOARD';
+            } else {
+                toggleBtn.innerHTML = 'HIDE DASHBOARD';
+            }
+        });
+    </script>
+
+    <!-- Three.js and OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        // 1. Professional Scene Setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+        scene.fog = new THREE.FogExp2(0x000000, 0.0015);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1500);
+        camera.position.set(-60, 40, 100);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio); 
+
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.3;
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI / 2 - 0.02; 
+        controls.minDistance = 20;
+        controls.maxDistance = 250;
+        controls.target.set(0, 10, 0);
+
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.5;
+        let idleTimeout;
+
+        controls.addEventListener('start', () => { 
+            controls.autoRotate = false; 
+            clearTimeout(idleTimeout);
+        });
+
+        controls.addEventListener('end', () => {
+            idleTimeout = setTimeout(() => {
+                controls.autoRotate = true;
+            }, 3000);
+        });
+
+        // 2. Advanced High-Contrast Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.28); 
+        scene.add(ambientLight);
+
+        const sunLight = new THREE.DirectionalLight(0xffffff, 4.0);
+        sunLight.position.set(200, 40, -100); 
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 4096; 
+        sunLight.shadow.mapSize.height = 4096;
+        sunLight.shadow.camera.near = 10;
+        sunLight.shadow.camera.far = 400;
+        sunLight.shadow.bias = -0.0005; 
+        const d = 150;
+        sunLight.shadow.camera.left = -d;
+        sunLight.shadow.camera.right = d;
+        sunLight.shadow.camera.top = d;
+        sunLight.shadow.camera.bottom = -d;
+        scene.add(sunLight);
+
+        // Regolith bounce/fill light — real lunar shadow sides aren't pure black; sunlight
+        // scattering off the bright regolith kicks a dim warm-grey fill into shadowed faces.
+        const bounceFill = new THREE.DirectionalLight(0x9a9488, 0.55);
+        bounceFill.position.set(-150, 15, 120);
+        scene.add(bounceFill);
+
+        // Dedicated rim/fill light aimed at the Starship's dark heatshield face so it
+        // reads as textured dark grey rather than merging into the black background.
+        const shipFill = new THREE.PointLight(0x8899aa, 1.4, 60);
+        shipFill.position.set(-15, 20, 55);
+        scene.add(shipFill);
+
+        // 3. Physically Based Materials (PBR) & TIRANGA COLORS
+        const regolithMaterial = new THREE.MeshStandardMaterial({ color: 0x444449, roughness: 1.0, metalness: 0.0, vertexColors: true });
+
+        const structuralMaterial = new THREE.MeshPhysicalMaterial({
+            color: 0xffffff, roughness: 0.3, metalness: 0.1, clearcoat: 0.8, clearcoatRoughness: 0.2
+        });
+
+        // Tiranga Accent Materials
+        const saffronMat = new THREE.MeshPhysicalMaterial({ color: 0xFF9933, roughness: 0.3, metalness: 0.1, clearcoat: 0.8 });
+        const greenMat = new THREE.MeshPhysicalMaterial({ color: 0x138808, roughness: 0.3, metalness: 0.1, clearcoat: 0.8 });
+
+        const glowingSaffron = new THREE.MeshBasicMaterial({ color: 0xFF9933 });
+        const glowingWhite = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const glowingGreen = new THREE.MeshBasicMaterial({ color: 0x138808 });
+
+        const solarPanelMaterial = new THREE.MeshStandardMaterial({
+            color: 0x050505, roughness: 0.1, metalness: 0.9, emissive: 0x111111, emissiveIntensity: 0.1
+        });
+
+        const greenhouseMaterial = new THREE.MeshPhysicalMaterial({
+            color: 0xccffcc, metalness: 0.1, roughness: 0.1, transmission: 0.98, thickness: 0.5, transparent: true
+        });
+
+        // 4. Lunar Terrain Generation (with crater fields + vertex-colored albedo variation)
+        const terrainGeo = new THREE.PlaneGeometry(800, 800, 256, 256);
+        const posAttr = terrainGeo.attributes.position;
+
+        // Simple crater field: random bowl depressions with raised rims
+        const craters = [];
+        for (let i = 0; i < 28; i++) {
+            craters.push({
+                x: (Math.random() - 0.5) * 700,
+                z: (Math.random() - 0.5) * 700,
+                r: 6 + Math.random() * 22,
+                depth: 1.5 + Math.random() * 4
+            });
+        }
+
+        const colorArray = new Float32Array(posAttr.count * 3);
+        for (let i = 0; i < posAttr.count; i++) {
+            let x = posAttr.getX(i);
+            let y = posAttr.getY(i);
+            let z = (Math.sin(x * 0.03) * Math.cos(y * 0.03) * 4) +
+                    (Math.sin(x * 0.1) * Math.cos(y * 0.1) * 1.5) + (Math.random() * 0.4);
+
+            let shade = 0.0;
+            for (const c of craters) {
+                const dx = x - c.x, dz = y - c.z;
+                const dist = Math.sqrt(dx * dx + dz * dz);
+                if (dist < c.r) {
+                    const t = dist / c.r;
+                    const bowl = -Math.cos(t * Math.PI * 0.5) * c.depth;
+                    const rim = Math.max(0, 1 - Math.abs(t - 0.85) * 6) * c.depth * 0.4;
+                    z += bowl + rim;
+                    shade += (1 - t) * 0.5;
+                }
+            }
+
+            let dist = Math.sqrt(x*x + y*y);
+            if(dist < 70) {
+                let flatteningFactor = Math.pow(dist / 70, 2); 
+                z *= flatteningFactor; 
+            } else if (dist > 200) {
+            
