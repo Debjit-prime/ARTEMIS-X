@@ -37,3 +37,8 @@ Because this project uses standard web technologies without a build step, it is 
 For a deep dive into the engineering constraints, closed-loop life support (ECLSS), and structural architecture, view the full project presentation here:
 
 👉 [View the Artemis-X Presentation PDF](Artemis-X.pdf)
+
+### 🌐 Live 3D Simulation
+**[🚀 Launch Project Artemis-X](https://debjit-prime.github.io/ARTEMIS-X/)**
+
+*Compatible with iOS and Android devices. Instantly launch the WebGL interactive experience.*
