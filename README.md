@@ -1,9 +1,9 @@
-# 🚀 Project Artemis-X: Interactive Lunar Base Digital Twin
+# 🚀 Chandra Sthaan-I: Interactive Lunar Base Digital Twin
 
 **A 3D WebGL simulation of a sustainable lunar South Pole architecture, designed for the National Space Day Lunar Base Design Challenge.**
 
 ## 📌 Project Overview
-Project Artemis-X is an interactive digital twin of a proposed lunar habitat at Shackleton Crater. It visualizes a strict zero-waste, closed-loop ecosystem utilizing In-Situ Resource Utilization (ISRU). This project was rapidly prototyped to demonstrate how advanced systems engineering constraints can be translated into an interactive, high-fidelity 3D environment.
+Chandra Sthaan-I is an interactive digital twin of a proposed lunar habitat at Shackleton Crater. It visualizes a strict zero-waste, closed-loop ecosystem utilizing In-Situ Resource Utilization (ISRU). This project was rapidly prototyped to demonstrate how advanced systems engineering constraints can be translated into an interactive, high-fidelity 3D environment.
 
 ## 🛠️ Technology Stack
 *   **Core:** HTML5, CSS3, Vanilla JavaScript
@@ -36,9 +36,9 @@ Because this project uses standard web technologies without a build step, it is 
 ### 📊 Project Presentation & System Architecture
 For a deep dive into the engineering constraints, closed-loop life support (ECLSS), and structural architecture, view the full project presentation here:
 
-👉 [View the Artemis-X Presentation PDF](Artemis-X.pdf)
+👉 [View the Chandra Sthaan-I Presentation PDF](Chandra-Sthaan-I.pdf)
 
 ### 🌐 Live 3D Simulation
-**[🚀 Launch Project Artemis-X](https://debjit-prime.github.io/ARTEMIS-X/)**
+**[🚀 Launch Chandra Sthaan-I](https://debjit-prime.github.io/CHANDRA-STHAAN-I/)**
 
 *Compatible with iOS and Android devices. Instantly launch the WebGL interactive experience.*
