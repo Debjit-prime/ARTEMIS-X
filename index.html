@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunar Base Architecture | Project Artemis-X</title>
+    <title>Lunar Base Architecture | Chandra Sthaan-I</title>
     <!-- Import aerospace-style font -->
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -718,7 +718,8 @@
             wctx.textBaseline = 'middle';
             wctx.fillText('ISRO', 40, 64);
             wctx.fillStyle = '#138808';
-            wctx.fillText('ARTEMIS-X', 320, 64);
+            wctx.font = 'bold 75px Arial'; // Slightly smaller to fit the longer name
+            wctx.fillText('CHANDRA STHAAN-I', 260, 64);
             const wordmarkTex = new THREE.CanvasTexture(wordmarkCanvas);
             wordmarkTex.wrapS = THREE.RepeatWrapping;
             wordmarkTex.repeat.set(1, 1);
