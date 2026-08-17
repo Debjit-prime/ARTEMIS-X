@@ -39,6 +39,6 @@ For a deep dive into the engineering constraints, closed-loop life support (ECLS
 👉 [View the Chandra Sthaan-I Presentation PDF](Chandra-Sthaan-I.pdf)
 
 ### 🌐 Live 3D Simulation
-**[🚀 Launch Chandra Sthaan-I](https://debjit-prime.github.io/CHANDRA-STHAAN-I/)**
+**[🚀 Launch Chandra Sthaan-I](https://debjit-prime.github.io/Chandra-Sthaan-I/)**
 
 *Compatible with iOS and Android devices. Instantly launch the WebGL interactive experience.*
